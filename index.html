@@ -235,6 +235,29 @@
             line-height: 1.6;
         }
 
+        .timing-info {
+            background: #fef3c7;
+            border-left-color: #f59e0b;
+            color: #92400e;
+            font-family: inherit;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .timing-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #f59e0b;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
         .loading {
             display: flex;
             align-items: center;
@@ -376,8 +399,9 @@
             sendBtn.disabled = true;
             sendBtn.textContent = 'Sending...';
 
-            // Add loading message
+            // Add loading message and start timing
             const loadingId = addLoadingMessage();
+            const startTime = Date.now();
 
             try {
                 const response = await fetch(`${API_URL}/query`, {
@@ -388,6 +412,10 @@
                     body: JSON.stringify({ query: query })
                 });
 
+                // Calculate response time
+                const endTime = Date.now();
+                const responseTime = endTime - startTime;
+
                 // Remove loading message
                 removeMessage(loadingId);
 
@@ -397,13 +425,17 @@
 
                 const result = await response.json();
                 
-                // Add bot response
-                addBotMessage(result);
+                // Add bot response with timing
+                addBotMessage(result, responseTime);
 
             } catch (error) {
+                // Calculate response time for error case
+                const endTime = Date.now();
+                const responseTime = endTime - startTime;
+
                 // Remove loading message and show error
                 removeMessage(loadingId);
-                addErrorMessage(error.message);
+                addErrorMessage(error.message, responseTime);
             } finally {
                 // Re-enable button
                 sendBtn.disabled = false;
@@ -420,7 +452,7 @@
             scrollToBottom();
         }
 
-        function addBotMessage(result) {
+        function addBotMessage(result, responseTime) {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message bot-message';
             
@@ -455,6 +487,17 @@
                     </div>
                 `;
             }
+
+            // Add response time
+            content += `
+                <div class="response-section">
+                    <div class="response-label">⏱️ Response Time:</div>
+                    <div class="response-content timing-info">
+                        <span class="timing-badge">⚡ ${formatResponseTime(responseTime)}</span>
+                        <span>Processing completed in ${formatResponseTime(responseTime)}</span>
+                    </div>
+                </div>
+            `;
             
             content += '</div>';
             messageDiv.innerHTML = content;
@@ -482,7 +525,7 @@
             return messageId;
         }
 
-        function addErrorMessage(error) {
+        function addErrorMessage(error, responseTime) {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message bot-message';
             messageDiv.innerHTML = `
@@ -490,6 +533,13 @@
                     <div class="response-section">
                         <div class="response-label" style="color: #dc2626;">❌ Error:</div>
                         <div class="response-content error">${escapeHtml(error)}</div>
+                    </div>
+                    <div class="response-section">
+                        <div class="response-label">⏱️ Response Time:</div>
+                        <div class="response-content timing-info">
+                            <span class="timing-badge">⚡ ${formatResponseTime(responseTime)}</span>
+                            <span>Error occurred after ${formatResponseTime(responseTime)}</span>
+                        </div>
                     </div>
                 </div>
             `;
@@ -517,6 +567,18 @@
         function formatResponse(response) {
             // Convert line breaks to HTML and escape HTML
             return escapeHtml(response).replace(/\n/g, '<br>');
+        }
+
+        function formatResponseTime(milliseconds) {
+            if (milliseconds < 1000) {
+                return `${milliseconds}ms`;
+            } else if (milliseconds < 60000) {
+                return `${(milliseconds / 1000).toFixed(1)}s`;
+            } else {
+                const minutes = Math.floor(milliseconds / 60000);
+                const seconds = ((milliseconds % 60000) / 1000).toFixed(1);
+                return `${minutes}m ${seconds}s`;
+            }
         }
     </script>
 </body>
